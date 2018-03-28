@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="de.kkonen.skateboard.skateboard.MainActivity">
+
+    <Button
+        android:id="@+id/start_broker_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="false"
+        android:text="start mqtt broker" />
+
+    <Button
+        android:id="@+id/start_mqtt_client_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="false"
+        android:text="start mqtt client"
+        app:layout_constraintTop_toBottomOf="@+id/start_broker_button" />
+
+    <Button
+        android:id="@+id/request_permission_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="request write permissions"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <Button
+    android:id="@+id/test_publish_button"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="test publish"
+    app:layout_constraintBottom_toTopOf="@+id/request_permission_button" />
+
+    <TextView
+        android:id="@+id/broker_status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Broker is offline!"
+        app:layout_constraintBaseline_toBaselineOf="@+id/start_broker_button"
+        app:layout_constraintLeft_toRightOf="@+id/start_broker_button" />
+
+    <TextView
+        android:id="@+id/permission_status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Permission status!"
+        app:layout_constraintBaseline_toBaselineOf="@+id/request_permission_button"
+        app:layout_constraintLeft_toRightOf="@+id/request_permission_button" />
+
+    <TextView
+        android:id="@+id/client_status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Client is offline!"
+        app:layout_constraintBaseline_toBaselineOf="@+id/start_mqtt_client_button"
+        app:layout_constraintLeft_toRightOf="@+id/start_mqtt_client_button" />
+
+    <TextView
+        android:id="@+id/listener_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Listener Message"
+        app:layout_constraintTop_toBottomOf="@+id/start_mqtt_client_button" />
+
+</android.support.constraint.ConstraintLayout>
