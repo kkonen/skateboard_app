@@ -29,9 +29,14 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Properties;
 
 import io.moquette.BrokerConstants;
@@ -46,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     public static final int EXTERNAL_STORAGE_REQUEST = 80085;
+    public static final String PATH = Environment.getExternalStorageDirectory().getAbsolutePath()
+            + File.separator + "Skateboard" + File.separator;
 
     Button start_broker_button, request_permission_button,
             start_mqtt_client_button, change_skater_button, record_button;
@@ -62,13 +69,25 @@ public class MainActivity extends AppCompatActivity {
 
     Boolean recording = false;
 
+    File recording_file;
+
+    FileOutputStream fOut;
+    OutputStreamWriter outWriter;
+
+    DateFormat df;
+    Calendar calobj;
+
     protected void onCreate(Bundle savedInstanceState) {
 
         super.setTitle("Skateboard-Trick Classification");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        File f = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator, "Skateboard");
+        df = new SimpleDateFormat("dd_MM_yy-HH_mm_ss");
+        calobj = Calendar.getInstance();
+
+
+        File f = new File(PATH);
         if (!f.exists()) {
             f.mkdirs();
         }
@@ -115,9 +134,8 @@ public class MainActivity extends AppCompatActivity {
     public void createMqttClient() {
 
         try {
-            if(client == null) {
-                MqttDefaultFilePersistence mdfp = new MqttDefaultFilePersistence(Environment.getExternalStorageDirectory().getAbsolutePath()
-                        + File.separator + "Skateboard" + File.separator + "mqttclient");
+            if (client == null) {
+                MqttDefaultFilePersistence mdfp = new MqttDefaultFilePersistence(PATH + "mqttclient");
 
                 final MqttConnectOptions mco = new MqttConnectOptions();
                 mco.setCleanSession(true);
@@ -145,12 +163,12 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void messageArrived(String topic, MqttMessage message) throws Exception {
+//                        bb.put(message.getPayload());
                         //1 unsigned long 6 shorts
                         long tstamp;
                         short ax, ay, az, gx, gy, gz;
 
                         ByteBuffer bb = ByteBuffer.wrap(message.getPayload());
-
                         bb.order(ByteOrder.LITTLE_ENDIAN);
                         tstamp = bb.getInt() & 0xffffffffl;
                         ax = bb.getShort();
@@ -159,8 +177,9 @@ public class MainActivity extends AppCompatActivity {
                         gx = bb.getShort();
                         gy = bb.getShort();
                         gz = bb.getShort();
-                        Log.d("MQTT_CALLBACK", topic + ": " + tstamp + "," + ax + "," + ay + "," + az + "," + gx + "," + gy + "," + gz + ",");
-//                    listener_string = Arrays.toString(message.getPayload());
+//                        Log.d("MQTT_CALLBACK", topic + ": " + tstamp + "," + ax + "," + ay + "," + az + "," + gx + "," + gy + "," + gz);
+                        if (recording)
+                            outWriter.append(tstamp + "," + ax + "," + ay + "," + az + "," + gx + "," + gy + "," + gz + "\n");
                     }
 
                     @Override
@@ -183,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
     public void createMqttBroker() {
 
         try {
-            if(!start_mqtt_client_button.isEnabled()) {
+            if (!start_mqtt_client_button.isEnabled()) {
                 MemoryConfig memoryConfig = new MemoryConfig(new Properties());
                 memoryConfig.setProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, "");
                 memoryConfig.setProperty(BrokerConstants.HOST, "localhost");
@@ -195,11 +214,12 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            broker_status_textView.setText("Can't create broker!");
+            broker_status_textView.setText("Broker can't be created!");
 
         }
 
     }
+
     public void createButtonListener() {
 
         start_broker_button.setOnClickListener(new View.OnClickListener() {
@@ -248,16 +268,68 @@ public class MainActivity extends AppCompatActivity {
         record_button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
 
-                if(!recording) {
-                    recording = !recording;
+                if (!recording) {
                     record_button.setText("Stop Recording");
+
                     int checked_button_id = trick_radio_group.getCheckedRadioButtonId();
-                    if (checked_button_id == -1)
+                    if (checked_button_id == -1 || checked_button_id == R.id.plain_data_radio_button)
                         trick = "Plain-Data";
                     else
                         trick = ((RadioButton) findViewById(trick_radio_group.getCheckedRadioButtonId())).getText().toString();
+
+                    recording_file = new File(PATH + File.separator + trick);
+                    if (!recording_file.exists())
+                        recording_file.mkdirs();
+
+                    calobj = Calendar.getInstance();
+                    recording_file = new File(PATH + File.separator + trick, skater_name + "-" + df.format(calobj.getTime()) + ".txt");
+                    fOut = null;
+                    try {
+                        recording_file.createNewFile();
+                        fOut = new FileOutputStream(recording_file);
+                        outWriter = new OutputStreamWriter(fOut);
+                        recording = true;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Log.d("RecordCallback", " Can't start recording!");
+                    }
                 } else {
-                    recording = !recording;
+                    recording = false;
+
+                    try {
+                        outWriter.close();
+                        fOut.flush();
+                        fOut.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+
+                    builder.setTitle("");
+                    builder.setMessage("Did he land that trick?");
+
+                    builder.setPositiveButton("For sure!", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            //do nothing because he landed the trick
+                            dialog.dismiss();
+                        }
+                    });
+
+                    builder.setNegativeButton("Nope...", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+                            //rename file to failed
+                            calobj = Calendar.getInstance();
+                            File failed_trick = new File(PATH + File.separator + trick, skater_name + "-" + df.format(calobj.getTime()) + "_FAILED" + ".txt");
+                            recording_file.renameTo(failed_trick);
+                            dialog.dismiss();
+                        }
+                    });
+                    AlertDialog alert = builder.create();
+                    alert.show();
+
                     record_button.setText("Start Recording");
                 }
             }
